@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista della Spesa Condivisibile</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        input, select {
+            padding: 8px;
+            margin-right: 5px;
+        }
+        button {
+            padding: 8px;
+            margin: 5px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            padding: 10px;
+            background: #f4f4f4;
+            margin: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        li img {
+            width: 50px;
+            height: 50px;
+            margin-right: 10px;
+            border-radius: 5px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        #shareLink {
+            word-break: break-all;
+            display: block;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Lista della Spesa Condivisibile</h1>
+    <input type="text" id="itemInput" placeholder="Nome prodotto">
+    <input type="number" id="quantityInput" placeholder="Quantità" min="1">
+    <select id="categoryInput">
+        <option value="Frutta">Frutta</option>
+        <option value="Verdura">Verdura</option>
+        <option value="Carne">Carne</option>
+        <option value="Pesce">Pesce</option>
+        <option value="Latticini">Latticini</option>
+        <option value="Snack">Snack</option>
+        <option value="Altro">Altro</option>
+    </select>
+    <input type="file" id="imageUpload" accept="image/*">
+    <button onclick="addItem()">Aggiungi</button>
+    <button onclick="generateShareLink()">Genera Link Condivisibile</button>
+    <p id="shareLink"></p>
+    <ul id="shoppingList"></ul>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            loadList();
+        });
+
+        function addItem() {
+            let itemInput = document.getElementById("itemInput").value.trim();
+            let quantityInput = document.getElementById("quantityInput").value;
+            let categoryInput = document.getElementById("categoryInput").value;
+            let imageUpload = document.getElementById("imageUpload").files[0];
+
+            if (itemInput === "" || quantityInput === "") return;
+
+            let list = document.getElementById("shoppingList");
+            let li = document.createElement("li");
+
+            let img = document.createElement("img");
+
+            if (imageUpload) {
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(imageUpload);
+            } else {
+                fetch(`https://api.example.com/images?search=${itemInput}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        img.src = data.image || "https://via.placeholder.com/50";
+                    })
+                    .catch(() => {
+                        img.src = "https://via.placeholder.com/50";
+                    });
+            }
+
+            let textNode = document.createElement("span");
+            textNode.textContent = `${quantityInput}x ${itemInput} (${categoryInput})`;
+
+            let controls = document.createElement("div");
+            controls.className = "controls";
+
+            let editImageButton = document.createElement("button");
+            editImageButton.textContent = "Modifica Immagine";
+            editImageButton.onclick = function() {
+                let newImageUpload = document.createElement("input");
+                newImageUpload.type = "file";
+                newImageUpload.accept = "image/*";
+                newImageUpload.onchange = function(event) {
+                    let newImageFile = event.target.files[0];
+                    let reader = new FileReader();
+                    reader.onload = function(e) {
+                        img.src = e.target.result;
+                        saveList();
+                    };
+                    reader.readAsDataURL(newImageFile);
+                };
+                newImageUpload.click();
+            };
+
+            let deleteButton = document.createElement("button");
+            deleteButton.textContent = "Elimina";
+            deleteButton.onclick = function() {
+                list.removeChild(li);
+                saveList();
+            };
+
+            controls.appendChild(editImageButton);
+            controls.appendChild(deleteButton);
+
+            li.appendChild(img);
+            li.appendChild(textNode);
+            li.appendChild(controls);
+
+            list.appendChild(li);
+            document.getElementById("itemInput").value = "";
+            document.getElementById("quantityInput").value = "";
+            document.getElementById("imageUpload").value = "";
+            saveList();
+        }
+
+        function generateShareLink() {
+            let items = [];
+            document.querySelectorAll("#shoppingList li span").forEach(textNode => {
+                items.push(textNode.textContent);
+            });
+            let encodedList = encodeURIComponent(items.join("; "));
+            let shareLink = `${window.location.origin}${window.location.pathname}?list=${encodedList}`;
+            document.getElementById("shareLink").innerHTML = `Link condivisibile: <a href="${shareLink}" target="_blank">${shareLink}</a>`;
+        }
+
+        function saveList() {
+            let items = [];
+            document.querySelectorAll("#shoppingList li span").forEach(textNode => {
+                items.push(textNode.textContent);
+            });
+            localStorage.setItem("shoppingList", JSON.stringify(items));
+        }
+
+        function loadList() {
+            let params = new URLSearchParams(window.location.search);
+            if (params.has("list")) {
+                let sharedItems = decodeURIComponent(params.get("list")).split("; ");
+                let list = document.getElementById("shoppingList");
+                sharedItems.forEach(item => {
+                    let li = document.createElement("li");
+                    let textNode = document.createElement("span");
+                    textNode.textContent = item;
+
+                    li.appendChild(textNode);
+                    list.appendChild(li);
+                });
+                return;
+            }
+
+            let savedItems = JSON.parse(localStorage.getItem("shoppingList")) || [];
+            let list = document.getElementById("shoppingList");
+            savedItems.forEach(item => {
+                let li = document.createElement("li");
+                let textNode = document.createElement("span");
+                textNode.textContent = item;
+
+                li.appendChild(textNode);
+                list.appendChild(li);
+            });
+        }
+    </script>
+</body>
+</html>
